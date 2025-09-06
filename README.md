@@ -57,6 +57,43 @@ $ yarn run test:e2e
 $ yarn run test:cov
 ```
 
+## Seeding
+
+The project includes a simple seed to create the initial admin user.
+
+- Endpoint: `POST /api/seed`
+- Header: `x-seed-secret: <your SEED_SECRET>`
+- Env vars (see `.env.template`): `SEED_SECRET`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_NAME`
+
+Run via script (dev only):
+
+```bash
+yarn seed
+```
+
+Example using curl (local dev):
+
+```bash
+curl -X POST http://localhost:3000/api/seed \
+  -H "x-seed-secret: dev-seed"
+```
+
+Behavior:
+- If no user exists with `ADMIN_EMAIL`, it creates one with roles `admin`, `super-user`, `user`, `isActive: true`, and `emailVerified: true`.
+- If it already exists, it returns the existing admin’s id/email/roles.
+
+Security notes:
+- Change `SEED_SECRET` before running in any shared or production environment.
+- Consider removing or disabling the Seed module after initialization in production.
+- The `yarn seed` script refuses to run unless `STAGE=dev`.
+
+## CORS
+
+- Env var: `CORS_ORIGIN` (comma-separated for multiple), default `http://localhost:4200`.
+- The app enables CORS at bootstrap with `credentials: true` and common headers.
+- For Angular dev at `http://localhost:4200`, no extra setup is needed beyond `CORS_ORIGIN`.
+- If your frontend uses cookies (`withCredentials: true`), keep `CORS_ORIGIN` as a specific origin (not `*`).
+
 ## Deployment
 
 When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
