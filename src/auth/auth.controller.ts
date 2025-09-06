@@ -1,6 +1,15 @@
-import { Controller, Get, Post, Body, UseGuards, Req, Headers, SetMetadata } from '@nestjs/common';
+import { Controller, Get, Post, Body, UseGuards, Req, Headers } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
-import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags, ApiTooManyRequestsResponse, ApiUnauthorizedResponse, ApiBadRequestResponse } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+  ApiTooManyRequestsResponse,
+  ApiUnauthorizedResponse,
+  ApiBadRequestResponse,
+  ApiBody,
+} from '@nestjs/swagger';
 // Throttle decorators (install @nestjs/throttler)
 import { Throttle } from '@nestjs/throttler';
 
@@ -11,10 +20,17 @@ import { RawHeaders, GetUser, Auth } from './decorators';
 import { RoleProtected } from './decorators/role-protected.decorator';
 
 import { CreateUserDto, LoginUserDto } from './dto';
-import { LoginResponseDto, RefreshResponseDto, RegisterResponseDto, OkResponseDto } from './dto/auth-responses.dto';
+import {
+  LoginResponseDto,
+  RefreshResponseDto,
+  RegisterResponseDto,
+  OkResponseDto,
+} from './dto/auth-responses.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
 import { RequestPasswordResetDto } from './dto/request-password-reset.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { RefreshRequestDto } from './dto/refresh-request.dto';
+import { TwoFactorCodeDto } from './dto/two-factor-code.dto';
 import { User } from './entities/user.entity';
 import { UserRoleGuard } from './guards/user-role.guard';
 import { ValidRoles } from './interfaces';
@@ -59,6 +75,7 @@ export class AuthController {
   @ApiUnauthorizedResponse({ description: 'Invalid/expired/revoked refresh token' })
   @ApiTooManyRequestsResponse({ description: 'Too many attempts' })
   @Throttle({ refresh: { limit: 30, ttl: 60 } })
+  @ApiBody({ type: RefreshRequestDto })
   refresh(@Body('refreshToken') refreshToken: string, @Req() req: any) {
     const ip = (req.ip || req.socket?.remoteAddress) as string | undefined;
     const userAgent = req.headers['user-agent'] as string | undefined;
@@ -69,6 +86,7 @@ export class AuthController {
   @ApiOperation({ summary: 'Revoke a specific refresh token' })
   @ApiOkResponse({ type: OkResponseDto })
   @ApiBadRequestResponse({ description: 'Invalid token format' })
+  @ApiBody({ type: RefreshRequestDto })
   logout(@Body('refreshToken') refreshToken: string) {
     return this.authService.logout(refreshToken);
   }
@@ -124,6 +142,7 @@ export class AuthController {
   @Auth()
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Enable 2FA with a valid TOTP code' })
+  @ApiBody({ type: TwoFactorCodeDto })
   enable2fa(@GetUser('id') userId: string, @Body('code') code: string) {
     return this.authService.enableTwoFactor(userId, code);
   }
@@ -132,6 +151,7 @@ export class AuthController {
   @Auth()
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Disable 2FA providing a current TOTP code' })
+  @ApiBody({ type: TwoFactorCodeDto })
   disable2fa(@GetUser('id') userId: string, @Body('code') code: string) {
     return this.authService.disableTwoFactor(userId, code);
   }
