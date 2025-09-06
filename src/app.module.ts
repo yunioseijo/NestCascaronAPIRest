@@ -8,6 +8,7 @@ import { ServeStaticModule } from '@nestjs/serve-static';
 import { CommonModule } from './common/common.module';
 import { MessagesWsModule } from './messages-ws/messages-ws.module';
 import { AuthModule } from './auth/auth.module';
+import { UsersModule } from './users/users.module';
 
 @Module({
   imports: [
@@ -36,6 +37,8 @@ import { AuthModule } from './auth/auth.module';
     AuthModule,
 
     MessagesWsModule,
+
+    UsersModule,
   ],
   controllers: [AppController],
   providers: [AppService],
