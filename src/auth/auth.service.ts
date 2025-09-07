@@ -86,7 +86,11 @@ export class AuthService {
     }
 
     // 2FA requirement
-    const fullUser = await this.userRepository.findOne({ where: { id: user.id } });
+    const fullUser = await this.userRepository
+      .createQueryBuilder('user')
+      .addSelect('user.twoFactorSecret')
+      .where('user.id = :id', { id: user.id })
+      .getOne();
     if (fullUser?.twoFactorEnabled) {
       if (!loginUserDto.twoFactorCode)
         throw new UnauthorizedException('Two-factor code required');
@@ -315,7 +319,11 @@ export class AuthService {
   }
 
   async enableTwoFactor(userId: string, code: string) {
-    const user = await this.userRepository.findOne({ where: { id: userId } });
+    const user = await this.userRepository
+      .createQueryBuilder('user')
+      .addSelect('user.twoFactorSecret')
+      .where('user.id = :id', { id: userId })
+      .getOne();
     if (!user?.twoFactorSecret) throw new BadRequestException('2FA not initialized');
     const ok = verifyTOTP(user.twoFactorSecret, code);
     if (!ok) throw new UnauthorizedException('Invalid two-factor code');
@@ -324,7 +332,11 @@ export class AuthService {
   }
 
   async disableTwoFactor(userId: string, code: string) {
-    const user = await this.userRepository.findOne({ where: { id: userId } });
+    const user = await this.userRepository
+      .createQueryBuilder('user')
+      .addSelect('user.twoFactorSecret')
+      .where('user.id = :id', { id: userId })
+      .getOne();
     if (user?.twoFactorEnabled) {
       if (!user.twoFactorSecret) throw new BadRequestException('2FA not initialized');
       const ok = verifyTOTP(user.twoFactorSecret, code);
