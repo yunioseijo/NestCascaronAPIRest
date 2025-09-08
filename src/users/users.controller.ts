@@ -7,6 +7,7 @@ import { ChangePasswordDto } from './dto/change-password.dto';
 import { UpdateUserRolesDto } from './dto/update-user-roles.dto';
 import { UpdateUserStatusDto } from './dto/update-user-status.dto';
 import { PaginationDto } from '../common/dtos/pagination.dto';
+import { UsersQueryDto } from './dto/users-query.dto';
 import { Auth } from '../auth/decorators/auth.decorator';
 import { GetUser } from '../auth/decorators/get-user.decorator';
 import { User } from '../auth/entities/user.entity';
@@ -53,8 +54,8 @@ export class UsersController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'List users (admin/super-user)' })
   @ApiOkResponse({ type: UserListResponseDto })
-  findAll(@Query() paginationDto: PaginationDto) {
-    return this.usersService.findAll(paginationDto);
+  findAll(@Query() query: UsersQueryDto) {
+    return this.usersService.findAll(query);
   }
 
   @Get(':id')

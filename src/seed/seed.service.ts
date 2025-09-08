@@ -87,10 +87,38 @@ export class SeedService {
       created.push({ id: saved.id, email: saved.email, roles: saved.roles });
     }
 
+    // Bulk demo users for pagination/filter testing
+    const bulkCount = Number(process.env.SEED_BULK_USERS ?? 20);
+    const bulkCreated: Array<{ id: string; email: string; roles: string[] }> = [];
+    for (let i = 1; i <= bulkCount; i++) {
+      const email = `user${String(i).padStart(2, '0')}@ahucha.local`;
+      const exists = await this.userRepository.findOne({ where: { email } });
+      if (exists) continue;
+
+      const roles = [
+        ...(i % 7 === 0 ? ['super-user', 'user'] : i % 5 === 0 ? ['admin', 'user'] : ['user']),
+      ];
+      const isActive = i % 6 !== 0; // every 6th inactive
+      const emailVerified = i % 4 !== 0; // every 4th unverified
+
+      const entity = this.userRepository.create({
+        email,
+        username: `user${String(i).padStart(2, '0')}`,
+        fullName: `Test User ${i}`,
+        password: bcrypt.hashSync(testPassword, 10),
+        roles,
+        isActive,
+        emailVerified,
+      });
+      const saved = await this.userRepository.save(entity);
+      bulkCreated.push({ id: saved.id, email: saved.email, roles: saved.roles });
+    }
+
     return {
       ok: true,
       admin: { id: admin.id, email: admin.email, roles: admin.roles },
       createdTestUsers: created,
+      createdBulkUsers: bulkCreated,
       testPassword,
     };
   }

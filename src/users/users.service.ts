@@ -6,6 +6,7 @@ import * as bcrypt from 'bcrypt';
 import { User } from '../auth/entities/user.entity';
 import { AuditLog } from '../auth/entities/audit-log.entity';
 import { PaginationDto } from '../common/dtos/pagination.dto';
+import { UsersQueryDto } from './dto/users-query.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
@@ -21,14 +22,34 @@ export class UsersService {
     private readonly auditLogRepository: Repository<AuditLog>,
   ) {}
 
-  async findAll(paginationDto: PaginationDto) {
-    const { limit = 10, offset = 0 } = paginationDto;
-    const [data, total] = await this.userRepository.findAndCount({
-      take: limit,
-      skip: offset,
-      order: { createdAt: 'DESC' },
-    });
+  async findAll(query: UsersQueryDto) {
+    const { limit = 10, offset = 0, q, role, isActive, emailVerified } = query;
+    const qb = this.userRepository.createQueryBuilder('user');
 
+    if (q) {
+      const term = `%${q.trim().toLowerCase()}%`;
+      qb.andWhere(
+        '(LOWER(user.email) LIKE :term OR LOWER(user.fullName) LIKE :term OR LOWER(user.username) LIKE :term OR LOWER(COALESCE(user.phone, \'\')) LIKE :term)',
+        { term },
+      );
+    }
+
+    if (role) {
+      // Postgres array contains role
+      qb.andWhere(':role = ANY(user.roles)', { role });
+    }
+
+    if (typeof isActive === 'boolean') {
+      qb.andWhere('user.isActive = :isActive', { isActive });
+    }
+
+    if (typeof emailVerified === 'boolean') {
+      qb.andWhere('user.emailVerified = :emailVerified', { emailVerified });
+    }
+
+    qb.orderBy('user.createdAt', 'DESC').take(limit).skip(offset);
+
+    const [data, total] = await qb.getManyAndCount();
     return { total, data };
   }
 
