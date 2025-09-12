@@ -27,5 +27,16 @@ export class UsersQueryDto extends PaginationDto {
   @IsBoolean()
   @Transform(({ value }) => (value === 'true' || value === true ? true : value === 'false' || value === false ? false : undefined))
   emailVerified?: boolean;
-}
 
+  @ApiPropertyOptional({ description: 'Include soft-deleted users in results', type: Boolean })
+  @IsOptional()
+  @IsBoolean()
+  @Transform(({ value }) => (value === 'true' || value === true ? true : value === 'false' || value === false ? false : undefined))
+  withDeleted?: boolean;
+
+  @ApiPropertyOptional({ description: 'Return only soft-deleted users', type: Boolean })
+  @IsOptional()
+  @IsBoolean()
+  @Transform(({ value }) => (value === 'true' || value === true ? true : value === 'false' || value === false ? false : undefined))
+  onlyDeleted?: boolean;
+}

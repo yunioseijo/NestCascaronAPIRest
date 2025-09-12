@@ -23,8 +23,13 @@ export class UsersService {
   ) {}
 
   async findAll(query: UsersQueryDto) {
-    const { limit = 10, offset = 0, q, role, isActive, emailVerified } = query;
+    const { limit = 10, offset = 0, q, role, isActive, emailVerified, withDeleted, onlyDeleted } = query;
     const qb = this.userRepository.createQueryBuilder('user');
+
+    // Include soft-deleted if requested
+    if (withDeleted || onlyDeleted) {
+      qb.withDeleted();
+    }
 
     if (q) {
       const term = `%${q.trim().toLowerCase()}%`;
@@ -45,6 +50,10 @@ export class UsersService {
 
     if (typeof emailVerified === 'boolean') {
       qb.andWhere('user.emailVerified = :emailVerified', { emailVerified });
+    }
+
+    if (onlyDeleted) {
+      qb.andWhere('user.deletedAt IS NOT NULL');
     }
 
     qb.orderBy('user.createdAt', 'DESC').take(limit).skip(offset);
