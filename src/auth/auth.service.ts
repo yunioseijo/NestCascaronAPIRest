@@ -21,6 +21,7 @@ import { verifyTOTP, randomBase32Secret } from './totp.util';
 import { VerifyEmailDto } from './dto/verify-email.dto';
 import { RequestPasswordResetDto } from './dto/request-password-reset.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { MailerService } from '../mailer/mailer.service';
 
 @Injectable()
 export class AuthService {
@@ -37,6 +38,7 @@ export class AuthService {
     private readonly auditLogRepository: Repository<AuditLog>,
 
     private readonly jwtService: JwtService,
+    private readonly mailer: MailerService,
   ) {}
 
   async create(createUserDto: CreateUserDto) {
@@ -238,8 +240,12 @@ export class AuthService {
     const secret = this.generateRandomSecret();
     const hashed = bcrypt.hashSync(secret, 10);
     await this.userRepository.update(userId, { emailVerificationToken: hashed });
-    const token = `${userId}.${secret}`; // deliver via email in production
-    return { ok: true, token }; // NOTE: return token here for dev/testing
+    const token = `${userId}.${secret}`;
+    // Send email (dev fallback logs to console)
+    await this.mailer.sendEmailVerification(user.email, token);
+    // In dev, return token to ease testing; in prod, omit
+    const isProd = process.env.NODE_ENV === 'production' || process.env.STAGE === 'prod';
+    return isProd ? { ok: true } : { ok: true, token };
   }
 
   async verifyEmail(dto: VerifyEmailDto) {
@@ -275,8 +281,11 @@ export class AuthService {
       passwordResetToken: hashed,
       passwordResetTokenExpiresAt: expiresAt,
     });
-    const token = `${user.id}.${secret}`; // deliver via email in production
-    return { ok: true, token }; // return only for dev/testing
+    const token = `${user.id}.${secret}`;
+    // Send email (dev fallback logs to console)
+    await this.mailer.sendPasswordReset(user.email, token);
+    const isProd = process.env.NODE_ENV === 'production' || process.env.STAGE === 'prod';
+    return isProd ? { ok: true } : { ok: true, token };
   }
 
   async resetPassword(dto: ResetPasswordDto) {

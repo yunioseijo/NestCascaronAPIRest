@@ -10,6 +10,7 @@ import { User } from './entities/user.entity';
 import { RefreshToken } from './entities/refresh-token.entity';
 import { AuditLog } from './entities/audit-log.entity';
 import { JwtStrategy } from './strategies/jwt.strategy';
+import { MailerModule } from '../mailer/mailer.module';
 
 @Module({
   controllers: [AuthController],
@@ -41,6 +42,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
     //   expiresIn:'2h'
     // }
     // })
+    MailerModule,
   ],
   exports: [TypeOrmModule, JwtStrategy, PassportModule, JwtModule],
 })

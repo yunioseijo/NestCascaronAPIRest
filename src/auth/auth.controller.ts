@@ -104,7 +104,8 @@ export class AuthController {
   @Post('email/send-verification')
   @Auth()
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Send email verification (dev returns token)' })
+  @ApiOperation({ summary: 'Send email verification (emails via Nodemailer; dev may return token)' })
+  @Throttle({ email: { limit: 5, ttl: 60 } })
   @ApiOkResponse({ type: OkResponseDto })
   sendEmailVerification(@GetUser('id') userId: string) {
     return this.authService.sendEmailVerification(userId);
@@ -118,7 +119,8 @@ export class AuthController {
 
   // Password reset
   @Post('password/request-reset')
-  @ApiOperation({ summary: 'Request password reset (dev returns token)' })
+  @ApiOperation({ summary: 'Request password reset (emails via Nodemailer; dev may return token)' })
+  @Throttle({ reset: { limit: 5, ttl: 60 } })
   requestPasswordReset(@Body() dto: RequestPasswordResetDto) {
     return this.authService.requestPasswordReset(dto);
   }
