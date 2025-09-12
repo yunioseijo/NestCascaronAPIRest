@@ -8,22 +8,45 @@ export class MailerService {
   private transporter?: Transporter;
   private from: string;
   private appWebUrl: string;
+  private etherealReady?: Promise<void>;
+  private usingEthereal = false;
 
   constructor(private readonly config: ConfigService) {
     this.from = this.config.get<string>('MAIL_FROM') || 'No Reply <no-reply@example.com>';
     this.appWebUrl = this.config.get<string>('APP_WEB_URL') || 'http://localhost:4200';
 
+    const provider = (this.config.get<string>('MAIL_PROVIDER') || '').toLowerCase();
     const host = this.config.get<string>('SMTP_HOST');
     const port = Number(this.config.get<string>('SMTP_PORT') || 587);
     const secure = String(this.config.get<string>('SMTP_SECURE') || 'false') === 'true';
     const user = this.config.get<string>('SMTP_USER');
     const pass = this.config.get<string>('SMTP_PASS');
 
-    if (host && user && pass) {
-      this.transporter = nodemailer.createTransport({ host, port, secure, auth: { user, pass } });
-      this.logger.log(`SMTP transporter configured for ${host}:${port} (secure=${secure})`);
-    } else {
-      this.logger.warn('SMTP not configured. Falling back to console logging of emails.');
+    try {
+      if (provider === 'gmail') {
+        if (!user || !pass) throw new Error('Gmail requires SMTP_USER and SMTP_PASS (App Password)');
+        this.transporter = nodemailer.createTransport({ service: 'gmail', auth: { user, pass } });
+        this.logger.log('Gmail transporter configured');
+      } else if (provider === 'mailtrap') {
+        if (!user || !pass) throw new Error('Mailtrap requires SMTP_USER and SMTP_PASS');
+        this.transporter = nodemailer.createTransport({ host: 'smtp.mailtrap.io', port: 587, secure: false, auth: { user, pass } });
+        this.logger.log('Mailtrap transporter configured');
+      } else if (provider === 'smtp') {
+        if (!host || !user || !pass) throw new Error('SMTP requires SMTP_HOST, SMTP_USER and SMTP_PASS');
+        this.transporter = nodemailer.createTransport({ host, port, secure, auth: { user, pass } });
+        this.logger.log(`SMTP transporter configured for ${host}:${port} (secure=${secure})`);
+      } else if (host && user && pass) {
+        // Fallback: use provided SMTP_* if present even without provider
+        this.transporter = nodemailer.createTransport({ host, port, secure, auth: { user, pass } });
+        this.logger.log(`SMTP transporter configured for ${host}:${port} (secure=${secure})`);
+      } else {
+        this.logger.warn('MAIL_PROVIDER not set or incomplete config. Using Ethereal test account for email previews.');
+        this.etherealReady = this.setupEtherealTransport();
+      }
+    } catch (err) {
+      this.logger.error(`Failed to configure mail transporter: ${(err as Error).message}`);
+      this.logger.warn('Falling back to Ethereal test account.');
+      this.etherealReady = this.setupEtherealTransport();
     }
   }
 
@@ -56,11 +79,35 @@ export class MailerService {
   }
 
   private async dispatch(to: string, subject: string, text: string, html: string) {
+    if (!this.transporter && this.etherealReady) {
+      try {
+        await this.etherealReady;
+      } catch (e) {
+        this.logger.error('Failed to initialize Ethereal transporter', e as any);
+      }
+    }
+
     if (!this.transporter) {
-      // Dev fallback
-      this.logger.log(`MAIL (dev only): to=${to} subject="${subject}"\n${text}`);
+      // Ultimate fallback: log to console
+      this.logger.log(`MAIL (logged): to=${to} subject="${subject}"\n${text}`);
       return;
     }
-    await this.transporter.sendMail({ from: this.from, to, subject, text, html });
+    const info = await this.transporter.sendMail({ from: this.from, to, subject, text, html });
+    if (this.usingEthereal) {
+      const url = nodemailer.getTestMessageUrl(info);
+      if (url) this.logger.log(`Ethereal email preview: ${url}`);
+    }
+  }
+
+  private async setupEtherealTransport() {
+    const testAccount = await nodemailer.createTestAccount();
+    this.transporter = nodemailer.createTransport({
+      host: 'smtp.ethereal.email',
+      port: 587,
+      secure: false,
+      auth: { user: testAccount.user, pass: testAccount.pass },
+    });
+    this.usingEthereal = true;
+    this.logger.log(`Ethereal test SMTP ready (user: ${testAccount.user})`);
   }
 }
