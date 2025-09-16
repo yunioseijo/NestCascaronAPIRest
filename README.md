@@ -98,14 +98,39 @@ Security notes:
 
 When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+### Railway (Dockerfile or Nixpacks)
 
-```bash
-$ yarn install -g @nestjs/mau
-$ mau deploy
-```
+This project ships with a multi-stage Dockerfile suitable for production. On Railway you can deploy using either:
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+- Dockerfile (recommended): Railway builds the container defined by `Dockerfile` and runs `npm run start:prod`.
+- Nixpacks (Node): Railway detects Node, runs `npm ci && npm run build`, then `npm run start:prod`.
+
+Create a managed PostgreSQL service in Railway and then set the following environment variables on the API service:
+
+- Using discrete variables (private networking):
+  - `STAGE=prod`
+  - `DB_HOST=${PGHOST}`
+  - `DB_PORT=${PGPORT}` (usually 5432)
+  - `DB_NAME=${PGDATABASE}`
+  - `DB_USERNAME=${PGUSER}`
+  - `DB_PASSWORD=${PGPASSWORD}`
+  - `DB_SSL=false` (private host does not require SSL)
+
+- Using a single connection string:
+  - `DATABASE_URL` (e.g. `postgresql://user:pass@host:5432/dbname`)
+  - `DB_SSL=true` if your provider requires SSL (e.g. public TCP proxy)
+
+Other recommended variables:
+
+- `JWT_SECRET`
+- `CORS_ORIGIN` (comma-separated list of allowed origins)
+- Optional: `APP_WEB_URL`, `SEED_SECRET` (for one-time seeding)
+
+Notes:
+
+- The app respects `process.env.PORT` (Railway injects it). Do not hardcode `PORT` in Railway.
+- SSL is controlled by `DB_SSL` (default: `STAGE === 'prod'`). When set, TypeORM uses `rejectUnauthorized: false` in the driver options for compatibility.
+- With `synchronize: true`, TypeORM updates the schema automatically. For production-grade flows, consider using migrations.
 
 ## Resources
 

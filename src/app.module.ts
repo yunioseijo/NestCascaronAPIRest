@@ -15,21 +15,32 @@ import { SeedModule } from './seed/seed.module';
 // Note: requires installing @nestjs/throttler
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 
+// Determine SSL once based on env
+const sslEnabled =
+  (process.env.DB_SSL ?? (process.env.STAGE === 'prod' ? 'true' : 'false')) ===
+  'true';
+
 @Module({
   imports: [
     ConfigModule.forRoot(),
 
     TypeOrmModule.forRoot({
-      ssl: process.env.STAGE === 'prod',
-      extra: {
-        ssl: process.env.STAGE === 'prod' ? { rejectUnauthorized: false } : null,
-      },
+      // Support DATABASE_URL or discrete vars
       type: 'postgres',
-      host: process.env.DB_HOST,
-      port: +(process.env.DB_PORT ?? 5432),
-      database: process.env.DB_NAME,
-      username: process.env.DB_USERNAME,
-      password: process.env.DB_PASSWORD,
+      ...(process.env.DATABASE_URL
+        ? { url: process.env.DATABASE_URL }
+        : {
+            host: process.env.DB_HOST,
+            port: +(process.env.DB_PORT ?? 5432),
+            database: process.env.DB_NAME,
+            username: process.env.DB_USERNAME,
+            password: process.env.DB_PASSWORD,
+          }),
+      // Allow overriding SSL via DB_SSL; default to STAGE === 'prod'
+      ssl: sslEnabled,
+      extra: {
+        ssl: sslEnabled ? { rejectUnauthorized: false } : null,
+      },
       autoLoadEntities: true,
       synchronize: true,
     }),
