@@ -25,7 +25,10 @@ import { MailerService } from '../mailer/mailer.service';
 
 @Injectable()
 export class AuthService {
-  private loginAttempts = new Map<string, { count: number; firstAt: number; lockedUntil?: number }>();
+  private loginAttempts = new Map<
+    string,
+    { count: number; firstAt: number; lockedUntil?: number }
+  >();
   private readonly maxAttempts = 5;
   private readonly windowMs = 15 * 60 * 1000; // 15 minutes
   private readonly lockoutMs = 10 * 60 * 1000; // 10 minutes
@@ -94,10 +97,8 @@ export class AuthService {
       .where('user.id = :id', { id: user.id })
       .getOne();
     if (fullUser?.twoFactorEnabled) {
-      if (!loginUserDto.twoFactorCode)
-        throw new UnauthorizedException('Two-factor code required');
-      if (!fullUser.twoFactorSecret)
-        throw new UnauthorizedException('2FA not properly configured');
+      if (!loginUserDto.twoFactorCode) throw new UnauthorizedException('Two-factor code required');
+      if (!fullUser.twoFactorSecret) throw new UnauthorizedException('2FA not properly configured');
       const ok = verifyTOTP(fullUser.twoFactorSecret, loginUserDto.twoFactorCode);
       if (!ok) throw new UnauthorizedException('Invalid two-factor code');
     }
@@ -188,7 +189,8 @@ export class AuthService {
     });
     if (!record || !record.user) throw new UnauthorizedException('Invalid refresh token');
     if (record.revokedAt) throw new UnauthorizedException('Refresh token revoked');
-    if (record.expiresAt.getTime() < Date.now()) throw new UnauthorizedException('Refresh token expired');
+    if (record.expiresAt.getTime() < Date.now())
+      throw new UnauthorizedException('Refresh token expired');
     const valid = bcrypt.compareSync(secret, record.hashedToken);
     if (!valid) throw new UnauthorizedException('Invalid refresh token');
 
@@ -272,20 +274,30 @@ export class AuthService {
 
   // Password reset
   async requestPasswordReset(dto: RequestPasswordResetDto) {
-    const user = await this.userRepository.findOne({ where: { email: dto.email } });
-    if (!user) return { ok: true }; // do not reveal existence
-    const secret = this.generateRandomSecret();
-    const hashed = bcrypt.hashSync(secret, 10);
-    const expiresAt = new Date(Date.now() + 1000 * 60 * 60); // 1 hour
-    await this.userRepository.update(user.id, {
-      passwordResetToken: hashed,
-      passwordResetTokenExpiresAt: expiresAt,
-    });
-    const token = `${user.id}.${secret}`;
-    // Send email (dev fallback logs to console)
-    await this.mailer.sendPasswordReset(user.email, token);
-    const isProd = process.env.NODE_ENV === 'production' || process.env.STAGE === 'prod';
-    return isProd ? { ok: true } : { ok: true, token };
+    console.log('[requestPasswordReset] payload:', dto);
+    try {
+      const user = await this.userRepository.findOne({ where: { email: dto.email } });
+      if (!user) {
+        console.log('[requestPasswordReset] Usuario no encontrado:', dto.email);
+        return { ok: true }; // do not revelar existencia
+      }
+      const secret = this.generateRandomSecret();
+      const hashed = bcrypt.hashSync(secret, 10);
+      const expiresAt = new Date(Date.now() + 1000 * 60 * 60); // 1 hora
+      await this.userRepository.update(user.id, {
+        passwordResetToken: hashed,
+        passwordResetTokenExpiresAt: expiresAt,
+      });
+      const token = `${user.id}.${secret}`;
+      // Enviar email (dev fallback logs to console)
+      await this.mailer.sendPasswordReset(user.email, token);
+      const isProd = process.env.NODE_ENV === 'production' || process.env.STAGE === 'prod';
+      console.log('[requestPasswordReset] Token generado:', isProd ? '[oculto en prod]' : token);
+      return isProd ? { ok: true } : { ok: true, token };
+    } catch (error) {
+      console.error('[requestPasswordReset] Error:', error);
+      throw error;
+    }
   }
 
   async resetPassword(dto: ResetPasswordDto) {
@@ -351,7 +363,10 @@ export class AuthService {
       const ok = verifyTOTP(user.twoFactorSecret, code);
       if (!ok) throw new UnauthorizedException('Invalid two-factor code');
     }
-    await this.userRepository.update(userId, { twoFactorEnabled: false, twoFactorSecret: null as any });
+    await this.userRepository.update(userId, {
+      twoFactorEnabled: false,
+      twoFactorSecret: null as any,
+    });
     return { ok: true };
   }
 
