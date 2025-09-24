@@ -104,7 +104,9 @@ export class AuthController {
   @Post('email/send-verification')
   @Auth()
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Send email verification (emails via Nodemailer; dev may return token)' })
+  @ApiOperation({
+    summary: 'Send email verification (emails via Nodemailer; dev may return token)',
+  })
   @Throttle({ email: { limit: 5, ttl: 60 } })
   @ApiOkResponse({ type: OkResponseDto })
   sendEmailVerification(@GetUser('id') userId: string) {
@@ -156,46 +158,5 @@ export class AuthController {
   @ApiBody({ type: TwoFactorCodeDto })
   disable2fa(@GetUser('id') userId: string, @Body('code') code: string) {
     return this.authService.disableTwoFactor(userId, code);
-  }
-
-  @Get('private')
-  @UseGuards(AuthGuard('jwt'))
-  testingPrivateRoute(
-    @Req() request: Express.Request,
-    @GetUser() user: User,
-    @GetUser('email') userEmail: string,
-
-    @RawHeaders() rawHeaders: string[],
-    @Headers() headers: IncomingHttpHeaders,
-  ) {
-    return {
-      ok: true,
-      message: 'Hola Mundo Private',
-      user,
-      userEmail,
-      rawHeaders,
-      headers,
-    };
-  }
-
-  // @SetMetadata('roles', ['admin','super-user'])
-
-  @Get('private2')
-  @RoleProtected(ValidRoles.superUser, ValidRoles.admin)
-  @UseGuards(AuthGuard('jwt'), UserRoleGuard)
-  privateRoute2(@GetUser() user: User) {
-    return {
-      ok: true,
-      user,
-    };
-  }
-
-  @Get('private3')
-  @Auth(ValidRoles.admin)
-  privateRoute3(@GetUser() user: User) {
-    return {
-      ok: true,
-      user,
-    };
   }
 }
